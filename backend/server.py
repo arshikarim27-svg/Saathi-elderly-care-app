@@ -283,6 +283,10 @@ async def get_conversation(user_id: str):
 
 # Google Maps Integration
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
+SPOONACULAR_API_KEY = os.environ.get('SPOONACULAR_API_KEY')
+OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 
 @api_router.get("/maps/nearby")
 async def find_nearby_places(
