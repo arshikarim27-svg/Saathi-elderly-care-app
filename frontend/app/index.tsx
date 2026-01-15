@@ -333,14 +333,63 @@ export default function Index() {
       }
 
       const data = await response.json();
-      speak(data.response);
-      setCurrentMessage(data.response);
-      await saveChatHistory(message, data.response);
+      const aiResponse = data.response;
+      
+      // Check if response is a command
+      if (aiResponse.startsWith('REMINDER_COMMAND:')) {
+        await handleReminderCommand(aiResponse, message);
+      } else if (aiResponse.startsWith('SNOOZE_COMMAND:')) {
+        const minutes = parseInt(aiResponse.split(':')[1]);
+        handleVoiceSnooze(minutes);
+      } else {
+        // Regular response
+        speak(aiResponse);
+        setCurrentMessage(aiResponse);
+        await saveChatHistory(message, aiResponse);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Sorry', 'I had trouble connecting. Please try again.');
+      const errorMessage = "Sorry, I had trouble understanding. Could you say that again?";
+      speak(errorMessage);
+      Alert.alert('Sorry', errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReminderCommand = async (command: string, originalMessage: string) => {
+    try {
+      // Parse: REMINDER_COMMAND:medicine:Take blood pressure medicine:09:00
+      const parts = command.split(':');
+      if (parts.length !== 4) {
+        throw new Error('Invalid command format');
+      }
+
+      const [_, type, title, time] = parts;
+      
+      // Create the reminder
+      const reminder: Reminder = {
+        id: Date.now().toString(),
+        type,
+        title,
+        time,
+        enabled: true,
+      };
+
+      const updatedReminders = [...reminders, reminder];
+      setReminders(updatedReminders);
+      await AsyncStorage.setItem('reminders', JSON.stringify(updatedReminders));
+      await scheduleNotification(reminder);
+
+      const confirmMessage = `Done! I'll remind you to ${title.toLowerCase()} at ${time}. You can count on me.`;
+      speak(confirmMessage);
+      setCurrentMessage(confirmMessage);
+      await saveChatHistory(originalMessage, confirmMessage);
+    } catch (error) {
+      console.error('Error creating reminder from voice:', error);
+      const errorMessage = "I understood you want a reminder, but could you tell me the time more clearly? For example, say '9 AM' or '5 PM'.";
+      speak(errorMessage);
+      setCurrentMessage(errorMessage);
     }
   };
 
