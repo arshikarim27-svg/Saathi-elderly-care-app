@@ -80,6 +80,7 @@ export default function Index() {
 
   useEffect(() => {
     initializeApp();
+    setupNotificationListener();
   }, []);
 
   useEffect(() => {
@@ -87,6 +88,69 @@ export default function Index() {
       updateGreeting();
     }
   }, [userName]);
+
+  const setupNotificationListener = () => {
+    // Listen for notification responses
+    const subscription = Notifications.addNotificationReceivedListener(notification => {
+      handleReminderNotification(notification);
+    });
+
+    return () => subscription.remove();
+  };
+
+  const handleReminderNotification = async (notification: any) => {
+    const title = notification.request.content.title;
+    const body = notification.request.content.body;
+    
+    // Speak the reminder out loud
+    speak(`${title}. ${body}. Say "I took it" to confirm, or say "snooze" to remind you later.`);
+    
+    // Show interactive prompt
+    setTimeout(() => {
+      Alert.prompt(
+        title,
+        `${body}\n\nWhat would you like to do?`,
+        [
+          {
+            text: 'I took it',
+            onPress: () => handleMedicineTaken(body),
+          },
+          {
+            text: 'Snooze 15 min',
+            onPress: () => handleVoiceSnooze(15),
+          },
+          {
+            text: 'Talk to me',
+            onPress: () => {
+              Alert.prompt(
+                'Tell me',
+                'You can say: "I took it", "snooze", or ask me anything',
+                async (text) => {
+                  if (text) {
+                    await sendMessage(text);
+                  }
+                }
+              );
+            },
+          },
+        ],
+        'plain-text'
+      );
+    }, 100);
+  };
+
+  const handleMedicineTaken = (reminderTitle: string) => {
+    speak("Wonderful! I'm so proud of you. Taking care of your health is important.");
+    // Log this action
+    saveChatHistory(
+      `Confirmed: ${reminderTitle}`,
+      "Great job! Keep taking care of yourself."
+    );
+  };
+
+  const handleVoiceSnooze = (minutes: number) => {
+    speak(`Okay, I'll remind you again in ${minutes} minutes.`);
+  };
 
   const initializeApp = async () => {
     await requestPermissions();
