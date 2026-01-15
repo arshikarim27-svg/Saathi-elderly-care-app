@@ -529,29 +529,24 @@ export default function Index() {
           </View>
         )}
 
-        {/* Recent Conversations */}
+        {/* Recent Conversations - Compact */}
         {recentChats.length > 0 && (
-          <View style={styles.historySection}>
-            <Text style={styles.sectionTitle}>Recent Conversations</Text>
-            {recentChats.map((chat, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.historyCard}
-                onPress={() => {
-                  setCurrentMessage(chat.response);
-                  speak(chat.response);
-                }}
-              >
-                <Text style={styles.historyTime}>{chat.time}</Text>
-                <Text style={styles.historyMessage} numberOfLines={2}>
-                  You: {chat.message}
-                </Text>
-                <Text style={styles.historyResponse} numberOfLines={2}>
-                  Me: {chat.response}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity 
+            style={styles.historyCompact}
+            onPress={() => {
+              Alert.alert(
+                'Recent Conversations',
+                recentChats.map((chat, i) => `${i + 1}. ${chat.message}`).join('\n\n'),
+                [{ text: 'Close' }]
+              );
+            }}
+          >
+            <Ionicons name="time-outline" size={20} color="#4A90E2" />
+            <Text style={styles.historyCompactText}>
+              {recentChats.length} recent conversation{recentChats.length > 1 ? 's' : ''}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
         )}
 
         {/* Main Talk Section */}
