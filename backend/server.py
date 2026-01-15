@@ -651,6 +651,321 @@ async def search_youtube(query: str, max_results: int = 5):
         logging.error(f"YouTube search error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Mood Tracking
+class MoodEntry(BaseModel):
+    user_id: str
+    mood: str  # happy, sad, anxious, calm, energetic, tired
+    note: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+@api_router.post("/mood/log")
+async def log_mood(entry: MoodEntry):
+    """Log daily mood"""
+    mood_data = entry.dict()
+    result = await db.moods.insert_one(mood_data)
+    mood_data['id'] = str(result.inserted_id)
+    return {"message": "Mood logged successfully", "mood": mood_data}
+
+@api_router.get("/mood/history/{user_id}")
+async def get_mood_history(user_id: str, days: int = 7):
+    """Get mood history"""
+    from_date = datetime.utcnow() - timedelta(days=days)
+    moods = await db.moods.find({
+        "user_id": user_id,
+        "timestamp": {"$gte": from_date}
+    }).to_list(100)
+    
+    return {"moods": [serialize_doc(m) for m in moods], "days": days}
+
+# Daily Affirmations (India-focused)
+AFFIRMATIONS_HINDI_ENGLISH = [
+    "You are strong and capable. आप मजबूत और सक्षम हैं।",
+    "Today will be a wonderful day. आज एक अद्भुत दिन होगा।",
+    "Your family loves you deeply. आपका परिवार आपको बहुत प्यार करता है।",
+    "You bring joy to others. आप दूसरों के लिए खुशी लाते हैं।",
+    "Age is just a number, wisdom is forever. उम्र सिर्फ एक संख्या है, ज्ञान हमेशा के लिए है।",
+    "You are blessed and loved. आप धन्य और प्रिय हैं।",
+    "Every day is a new beginning. हर दिन एक नई शुरुआत है।",
+    "Your health is improving. आपका स्वास्थ्य सुधर रहा है।",
+    "You deserve happiness and peace. आप खुशी और शांति के योग्य हैं।",
+    "You are precious to your family. आप अपने परिवार के लिए अनमोल हैं।"
+]
+
+@api_router.get("/enrichment/affirmation")
+async def get_daily_affirmation():
+    """Get random affirmation"""
+    import random
+    affirmation = random.choice(AFFIRMATIONS_HINDI_ENGLISH)
+    return {"affirmation": affirmation}
+
+# Jokes Database (India-focused, family-friendly)
+INDIAN_JOKES = [
+    {"joke": "Why did the samosa go to school? To get a little butter! (batter!)", "type": "food"},
+    {"joke": "What do you call a sleeping bull? A bulldozer!", "type": "animal"},
+    {"joke": "Why did the cricket player go to the bank? To get his boundary!", "type": "cricket"},
+    {"joke": "What's a computer's favorite snack? Microchips and data!", "type": "tech"},
+    {"joke": "Why don't secrets work in India? Because chai and gossip travel faster than internet!", "type": "culture"},
+    {"joke": "What did the chapati say to the dal? Without you, life is so dry!", "type": "food"},
+    {"joke": "Why was the math book sad? It had too many problems!", "type": "general"},
+    {"joke": "What do you call a funny mountain? Hill-arious!", "type": "general"},
+    {"joke": "Why did the bicycle fall over? It was two-tired!", "type": "general"},
+    {"joke": "What do clouds wear under their clothes? Thunderwear!", "type": "weather"}
+]
+
+@api_router.get("/enrichment/joke")
+async def get_joke():
+    """Get random joke"""
+    import random
+    joke = random.choice(INDIAN_JOKES)
+    return joke
+
+# Trivia Database (India-focused)
+INDIAN_TRIVIA = [
+    {
+        "question": "Which Indian city is known as the Pink City?",
+        "options": ["Jaipur", "Udaipur", "Jodhpur", "Agra"],
+        "answer": "Jaipur",
+        "category": "geography"
+    },
+    {
+        "question": "Who is known as the Father of the Nation in India?",
+        "options": ["Jawaharlal Nehru", "Mahatma Gandhi", "Sardar Patel", "Subhash Chandra Bose"],
+        "answer": "Mahatma Gandhi",
+        "category": "history"
+    },
+    {
+        "question": "What is India's national flower?",
+        "options": ["Rose", "Lotus", "Jasmine", "Marigold"],
+        "answer": "Lotus",
+        "category": "general"
+    },
+    {
+        "question": "In which year did India gain independence?",
+        "options": ["1942", "1945", "1947", "1950"],
+        "answer": "1947",
+        "category": "history"
+    },
+    {
+        "question": "Which is the longest river in India?",
+        "options": ["Yamuna", "Brahmaputra", "Ganga", "Godavari"],
+        "answer": "Ganga",
+        "category": "geography"
+    },
+    {
+        "question": "Who was the first Prime Minister of India?",
+        "options": ["Dr. Rajendra Prasad", "Jawaharlal Nehru", "Indira Gandhi", "Lal Bahadur Shastri"],
+        "answer": "Jawaharlal Nehru",
+        "category": "history"
+    },
+    {
+        "question": "What is the capital of India?",
+        "options": ["Mumbai", "Kolkata", "New Delhi", "Chennai"],
+        "answer": "New Delhi",
+        "category": "geography"
+    },
+    {
+        "question": "Which festival is known as the festival of lights?",
+        "options": ["Holi", "Diwali", "Dussehra", "Eid"],
+        "answer": "Diwali",
+        "category": "culture"
+    }
+]
+
+@api_router.get("/enrichment/trivia")
+async def get_trivia(category: str = "all"):
+    """Get random trivia question"""
+    import random
+    if category == "all":
+        questions = INDIAN_TRIVIA
+    else:
+        questions = [q for q in INDIAN_TRIVIA if q["category"] == category]
+    
+    if not questions:
+        questions = INDIAN_TRIVIA
+    
+    question = random.choice(questions)
+    return question
+
+@api_router.post("/enrichment/trivia/answer")
+async def check_trivia_answer(user_answer: str, correct_answer: str):
+    """Check if trivia answer is correct"""
+    is_correct = user_answer.lower().strip() == correct_answer.lower().strip()
+    if is_correct:
+        responses = [
+            "Shabash! Correct answer! शाबाश!",
+            "Excellent! You're so smart! बहुत अच्छा!",
+            "Perfect! That's right! बिल्कुल सही!",
+            "Wonderful! You got it! कमाल है!"
+        ]
+    else:
+        responses = [
+            f"Close! The correct answer is {correct_answer}. No worries, you'll get the next one!",
+            f"Not quite! It's {correct_answer}. Keep trying, you're doing great!",
+            f"Almost! The answer is {correct_answer}. Practice makes perfect!"
+        ]
+    
+    import random
+    return {"correct": is_correct, "message": random.choice(responses)}
+
+# Gratitude Journal
+class GratitudeEntry(BaseModel):
+    user_id: str
+    gratitude_text: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+@api_router.post("/enrichment/gratitude")
+async def log_gratitude(entry: GratitudeEntry):
+    """Log gratitude entry"""
+    gratitude_data = entry.dict()
+    result = await db.gratitude.insert_one(gratitude_data)
+    gratitude_data['id'] = str(result.inserted_id)
+    
+    responses = [
+        "Thank you for sharing. Gratitude brings peace. धन्यवाद।",
+        "Beautiful! Being grateful makes us happy. बहुत अच्छा!",
+        "Wonderful! Count your blessings every day. शानदार!"
+    ]
+    
+    import random
+    return {"message": random.choice(responses), "entry": gratitude_data}
+
+@api_router.get("/enrichment/gratitude/{user_id}")
+async def get_gratitude_history(user_id: str, days: int = 30):
+    """Get gratitude history"""
+    from_date = datetime.utcnow() - timedelta(days=days)
+    entries = await db.gratitude.find({
+        "user_id": user_id,
+        "timestamp": {"$gte": from_date}
+    }).sort("timestamp", -1).to_list(100)
+    
+    return {"entries": [serialize_doc(e) for e in entries]}
+
+# Inspirational Quotes (India-focused)
+INSPIRATIONAL_QUOTES = [
+    {"quote": "Arise, awake and stop not till the goal is reached.", "author": "Swami Vivekananda"},
+    {"quote": "The best time to plant a tree was 20 years ago. The second best time is now.", "author": "Ancient Indian Proverb"},
+    {"quote": "You must be the change you wish to see in the world.", "author": "Mahatma Gandhi"},
+    {"quote": "In a gentle way, you can shake the world.", "author": "Mahatma Gandhi"},
+    {"quote": "The mind is everything. What you think, you become.", "author": "Buddha"},
+    {"quote": "Health is the greatest gift, contentment the greatest wealth.", "author": "Buddha"},
+    {"quote": "Yesterday is history, tomorrow is mystery, today is a gift.", "author": "Ancient Wisdom"},
+    {"quote": "A journey of a thousand miles begins with a single step.", "author": "Lao Tzu"},
+    {"quote": "The soul is neither born nor does it ever die.", "author": "Bhagavad Gita"},
+    {"quote": "Where there is love, there is life.", "author": "Mahatma Gandhi"}
+]
+
+@api_router.get("/enrichment/quote")
+async def get_inspirational_quote():
+    """Get random inspirational quote"""
+    import random
+    quote = random.choice(INSPIRATIONAL_QUOTES)
+    return quote
+
+# Breathing Exercises
+BREATHING_EXERCISES = [
+    {
+        "name": "Simple Deep Breathing",
+        "name_hindi": "सरल गहरी सांस",
+        "steps": [
+            "Sit comfortably with your back straight",
+            "Close your eyes gently",
+            "Breathe in slowly through your nose for 4 counts",
+            "Hold for 2 counts",
+            "Breathe out slowly through your mouth for 6 counts",
+            "Repeat 5 times"
+        ],
+        "duration": "2 minutes",
+        "benefits": "Reduces stress and anxiety"
+    },
+    {
+        "name": "Alternate Nostril Breathing (Anulom Vilom)",
+        "name_hindi": "अनुलोम विलोम प्राणायाम",
+        "steps": [
+            "Sit in a comfortable position",
+            "Close right nostril with thumb",
+            "Breathe in through left nostril",
+            "Close left nostril, open right nostril",
+            "Breathe out through right nostril",
+            "Breathe in through right nostril",
+            "Switch and breathe out through left",
+            "Repeat 10 times"
+        ],
+        "duration": "5 minutes",
+        "benefits": "Balances mind and body, improves concentration"
+    },
+    {
+        "name": "Belly Breathing",
+        "name_hindi": "पेट की सांस",
+        "steps": [
+            "Lie down or sit comfortably",
+            "Place one hand on belly, one on chest",
+            "Breathe deeply so your belly rises",
+            "Chest should stay still",
+            "Breathe out slowly",
+            "Repeat 10 times"
+        ],
+        "duration": "3 minutes",
+        "benefits": "Calms nervous system, helps sleep"
+    }
+]
+
+@api_router.get("/enrichment/breathing")
+async def get_breathing_exercise():
+    """Get breathing exercise"""
+    import random
+    exercise = random.choice(BREATHING_EXERCISES)
+    return exercise
+
+# Birthday Tracker
+class Birthday(BaseModel):
+    user_id: str
+    person_name: str
+    relation: str
+    birth_date: str  # MM-DD format
+    phone: Optional[str] = None
+
+@api_router.post("/enrichment/birthday")
+async def add_birthday(birthday: Birthday):
+    """Add birthday to tracker"""
+    birthday_data = birthday.dict()
+    birthday_data['created_at'] = datetime.utcnow()
+    result = await db.birthdays.insert_one(birthday_data)
+    birthday_data['id'] = str(result.inserted_id)
+    return {"message": "Birthday added successfully", "birthday": birthday_data}
+
+@api_router.get("/enrichment/birthdays/{user_id}")
+async def get_upcoming_birthdays(user_id: str, days: int = 30):
+    """Get upcoming birthdays"""
+    birthdays = await db.birthdays.find({"user_id": user_id}).to_list(100)
+    
+    # Check which birthdays are coming up
+    today = datetime.utcnow()
+    upcoming = []
+    
+    for bday in birthdays:
+        try:
+            month, day = map(int, bday['birth_date'].split('-'))
+            this_year = today.year
+            bday_this_year = datetime(this_year, month, day)
+            
+            # If birthday passed, check next year
+            if bday_this_year < today:
+                bday_this_year = datetime(this_year + 1, month, day)
+            
+            days_until = (bday_this_year - today).days
+            
+            if 0 <= days_until <= days:
+                bday_copy = serialize_doc(bday)
+                bday_copy['days_until'] = days_until
+                upcoming.append(bday_copy)
+        except:
+            continue
+    
+    # Sort by days until
+    upcoming.sort(key=lambda x: x['days_until'])
+    
+    return {"upcoming_birthdays": upcoming, "count": len(upcoming)}
+
 # Include the router in the main app
 app.include_router(api_router)
 
