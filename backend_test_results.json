@@ -1,0 +1,168 @@
+{
+  "summary": {
+    "passed": 11,
+    "failed": 2,
+    "total": 13
+  },
+  "detailed_results": [
+    {
+      "test": "API Root",
+      "success": true,
+      "details": "API is running: Saathi API is running",
+      "timestamp": "2026-01-15T03:04:06.940108",
+      "response_data": null
+    },
+    {
+      "test": "User Creation",
+      "success": true,
+      "details": "User created with ID: 69685926ee9442f977dd20ea",
+      "timestamp": "2026-01-15T03:04:06.967679",
+      "response_data": {
+        "id": "69685926ee9442f977dd20ea",
+        "name": "Rajesh Kumar",
+        "emergency_contacts": [
+          {
+            "name": "Dr. Sharma",
+            "phone": "+91-9876543210"
+          },
+          {
+            "name": "Son - Amit",
+            "phone": "+91-9876543211"
+          }
+        ],
+        "created_at": "2026-01-15T03:04:06.951847"
+      }
+    },
+    {
+      "test": "User Retrieval",
+      "success": true,
+      "details": "User retrieved successfully: Rajesh Kumar",
+      "timestamp": "2026-01-15T03:04:07.019726",
+      "response_data": {
+        "id": "69685926ee9442f977dd20ea",
+        "name": "Rajesh Kumar",
+        "emergency_contacts": [
+          {
+            "name": "Dr. Sharma",
+            "phone": "+91-9876543210"
+          },
+          {
+            "name": "Son - Amit",
+            "phone": "+91-9876543211"
+          }
+        ],
+        "created_at": "2026-01-15T03:04:06.951000"
+      }
+    },
+    {
+      "test": "Users List",
+      "success": true,
+      "details": "Retrieved 1 users",
+      "timestamp": "2026-01-15T03:04:07.031534",
+      "response_data": {
+        "count": 1
+      }
+    },
+    {
+      "test": "Medicine Reminder Creation",
+      "success": true,
+      "details": "Medicine reminder created: Blood Pressure Medicine - Amlodipine 5mg",
+      "timestamp": "2026-01-15T03:04:07.044183",
+      "response_data": {
+        "id": "69685927ee9442f977dd20eb",
+        "user_id": "rajesh_kumar",
+        "type": "medicine",
+        "title": "Blood Pressure Medicine - Amlodipine 5mg",
+        "time": "09:00",
+        "enabled": true,
+        "snoozed_until": null,
+        "created_at": "2026-01-15T03:04:07.039873"
+      }
+    },
+    {
+      "test": "Walk Reminder Creation",
+      "success": true,
+      "details": "Walk reminder created: Evening Walk in the Park",
+      "timestamp": "2026-01-15T03:04:07.095007",
+      "response_data": {
+        "id": "69685927ee9442f977dd20ec",
+        "user_id": "rajesh_kumar",
+        "type": "walk",
+        "title": "Evening Walk in the Park",
+        "time": "17:30",
+        "enabled": true,
+        "snoozed_until": null,
+        "created_at": "2026-01-15T03:04:07.050039"
+      }
+    },
+    {
+      "test": "Reminders List",
+      "success": true,
+      "details": "Retrieved 2 reminders for user",
+      "timestamp": "2026-01-15T03:04:07.107640",
+      "response_data": {
+        "count": 2
+      }
+    },
+    {
+      "test": "Reminder Update",
+      "success": true,
+      "details": "Reminder updated successfully: time=08:30, enabled=False",
+      "timestamp": "2026-01-15T03:04:07.123261",
+      "response_data": {
+        "id": "69685927ee9442f977dd20eb",
+        "user_id": "rajesh_kumar",
+        "type": "medicine",
+        "title": "Blood Pressure Medicine - Amlodipine 5mg",
+        "time": "08:30",
+        "enabled": false,
+        "snoozed_until": null,
+        "created_at": "2026-01-15T03:04:07.039000"
+      }
+    },
+    {
+      "test": "Reminder Snooze",
+      "success": true,
+      "details": "Reminder snoozed: Reminder snoozed for 15 minutes",
+      "timestamp": "2026-01-15T03:04:07.178092",
+      "response_data": {
+        "message": "Reminder snoozed for 15 minutes",
+        "snoozed_until": "2026-01-15T03:19:07.133185"
+      }
+    },
+    {
+      "test": "Chat Basic Message",
+      "success": true,
+      "details": "AI responded appropriately: I\u2019m doing well today, thank you for asking. How are you feeling\u2014did you rest okay, and have you had ...",
+      "timestamp": "2026-01-15T03:04:08.282344",
+      "response_data": {
+        "response": "I\u2019m doing well today, thank you for asking. How are you feeling\u2014did you rest okay, and have you had some water or tea?",
+        "timestamp": "2026-01-15T03:04:08.278450"
+      }
+    },
+    {
+      "test": "Chat Context Persistence",
+      "success": false,
+      "details": "AI didn't remember Mumbai: I don\u2019t see any city mentioned in our chat so far. If you tell me the city name again, I\u2019ll gladly repeat it back to you.",
+      "timestamp": "2026-01-15T03:04:10.933089",
+      "response_data": null
+    },
+    {
+      "test": "Conversation History",
+      "success": true,
+      "details": "Retrieved 6 messages",
+      "timestamp": "2026-01-15T03:04:10.943474",
+      "response_data": {
+        "message_count": 6
+      }
+    },
+    {
+      "test": "Error Handling",
+      "success": false,
+      "details": "Passed 2/3 error handling tests",
+      "timestamp": "2026-01-15T03:04:11.307581",
+      "response_data": null
+    }
+  ],
+  "timestamp": "2026-01-15T03:04:11.370290"
+}
