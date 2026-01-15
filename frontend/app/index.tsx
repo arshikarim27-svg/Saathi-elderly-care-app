@@ -480,6 +480,19 @@ export default function Index() {
           </View>
         )}
 
+        {/* Voice Instructions Banner */}
+        {userName && (
+          <View style={styles.voiceInstructions}>
+            <Ionicons name="mic-circle" size={28} color="#4A90E2" />
+            <View style={styles.voiceInstructionsText}>
+              <Text style={styles.voiceInstructionsTitle}>Talk to set reminders!</Text>
+              <Text style={styles.voiceInstructionsSubtext}>
+                Just say: "Remind me to take medicine at 9am"
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Active Reminders */}
         {reminders.length > 0 && (
           <View style={styles.remindersSection}>
