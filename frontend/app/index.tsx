@@ -674,14 +674,14 @@ export default function Index() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Type</Text>
+              <Text style={styles.inputLabel}>Type of Reminder</Text>
               <View style={styles.typeSelector}>
                 <TouchableOpacity
                   style={[
                     styles.typeButton,
                     newReminder.type === 'medicine' && styles.typeButtonActive,
                   ]}
-                  onPress={() => setNewReminder({ ...newReminder, type: 'medicine' })}
+                  onPress={() => setNewReminder({ ...newReminder, type: 'medicine', customType: '' })}
                 >
                   <Ionicons name="medical" size={20} color={newReminder.type === 'medicine' ? '#fff' : '#4A90E2'} />
                   <Text style={[styles.typeButtonText, newReminder.type === 'medicine' && styles.typeButtonTextActive]}>
@@ -693,15 +693,40 @@ export default function Index() {
                     styles.typeButton,
                     newReminder.type === 'walk' && styles.typeButtonActive,
                   ]}
-                  onPress={() => setNewReminder({ ...newReminder, type: 'walk' })}
+                  onPress={() => setNewReminder({ ...newReminder, type: 'walk', customType: '' })}
                 >
                   <Ionicons name="walk" size={20} color={newReminder.type === 'walk' ? '#fff' : '#4A90E2'} />
                   <Text style={[styles.typeButtonText, newReminder.type === 'walk' && styles.typeButtonTextActive]}>
                     Walk
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    newReminder.type === 'custom' && styles.typeButtonActive,
+                  ]}
+                  onPress={() => setNewReminder({ ...newReminder, type: 'custom' })}
+                >
+                  <Ionicons name="create" size={20} color={newReminder.type === 'custom' ? '#fff' : '#4A90E2'} />
+                  <Text style={[styles.typeButtonText, newReminder.type === 'custom' && styles.typeButtonTextActive]}>
+                    Other
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
+
+            {newReminder.type === 'custom' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>What type? (e.g., Exercise, Call, Prayer)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Type here..."
+                  placeholderTextColor="#999"
+                  value={newReminder.customType}
+                  onChangeText={(text) => setNewReminder({ ...newReminder, customType: text })}
+                />
+              </View>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>What should I remind you about?</Text>
