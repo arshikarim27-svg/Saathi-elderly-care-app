@@ -918,30 +918,22 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
   },
-  historySection: {
-    marginBottom: 24,
-  },
-  historyCard: {
+  historyCompact: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#4A90E2',
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E8F4FD',
   },
-  historyTime: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 6,
-  },
-  historyMessage: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  historyResponse: {
-    fontSize: 14,
-    color: '#2C5F8D',
+  historyCompactText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#4A90E2',
+    marginLeft: 10,
     fontWeight: '500',
   },
   mainSection: {
