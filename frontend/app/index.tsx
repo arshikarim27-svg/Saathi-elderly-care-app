@@ -72,10 +72,10 @@ export default function Index() {
   const [greeting, setGreeting] = useState('');
 
   const suggestions: SuggestionCard[] = [
-    { text: 'Tell me a story from your childhood', icon: 'book' },
-    { text: 'What should I cook today?', icon: 'restaurant' },
+    { text: 'Remind me to take my medicine at 9am', icon: 'medical' },
+    { text: 'Set a walk reminder for 5pm', icon: 'walk' },
     { text: 'Tell me a joke to brighten my day', icon: 'happy' },
-    { text: 'Share a health tip with me', icon: 'heart' },
+    { text: 'What should I cook today?', icon: 'restaurant' },
   ];
 
   useEffect(() => {
