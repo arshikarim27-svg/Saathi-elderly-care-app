@@ -400,6 +400,238 @@ async def geocode_address(address: str):
         logging.error(f"Geocode error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# News API Integration
+@api_router.get("/news/headlines")
+async def get_news_headlines(category: str = "general", country: str = "us"):
+    """Get top news headlines"""
+    try:
+        url = "https://newsapi.org/v2/top-headlines"
+        params = {
+            "category": category,
+            "country": country,
+            "apiKey": NEWS_API_KEY,
+            "pageSize": 5
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if data.get("status") != "ok":
+            raise HTTPException(status_code=400, detail="News API error")
+        
+        # Format for elderly-friendly display
+        articles = []
+        for article in data.get("articles", []):
+            articles.append({
+                "title": article["title"],
+                "description": article.get("description", "")[:150] + "..." if article.get("description") else "",
+                "source": article["source"]["name"],
+                "published": article["publishedAt"]
+            })
+        
+        return {"articles": articles, "count": len(articles)}
+    except Exception as e:
+        logging.error(f"News error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/news/search")
+async def search_news(query: str, language: str = "en"):
+    """Search news by keyword"""
+    try:
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            "q": query,
+            "language": language,
+            "sortBy": "publishedAt",
+            "apiKey": NEWS_API_KEY,
+            "pageSize": 5
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if data.get("status") != "ok":
+            raise HTTPException(status_code=400, detail="News search error")
+        
+        articles = []
+        for article in data.get("articles", []):
+            articles.append({
+                "title": article["title"],
+                "description": article.get("description", "")[:150] + "...",
+                "source": article["source"]["name"]
+            })
+        
+        return {"articles": articles, "query": query}
+    except Exception as e:
+        logging.error(f"News search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Weather API Integration
+@api_router.get("/weather/current")
+async def get_current_weather(lat: float, lng: float):
+    """Get current weather"""
+    try:
+        url = "https://api.openweathermap.org/data/2.5/weather"
+        params = {
+            "lat": lat,
+            "lon": lng,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric"
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Weather API error")
+        
+        return {
+            "temperature": round(data["main"]["temp"]),
+            "feels_like": round(data["main"]["feels_like"]),
+            "description": data["weather"][0]["description"],
+            "humidity": data["main"]["humidity"],
+            "wind_speed": data["wind"]["speed"],
+            "city": data.get("name", "Your location")
+        }
+    except Exception as e:
+        logging.error(f"Weather error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/weather/forecast")
+async def get_weather_forecast(lat: float, lng: float):
+    """Get 3-day weather forecast"""
+    try:
+        url = "https://api.openweathermap.org/data/2.5/forecast"
+        params = {
+            "lat": lat,
+            "lon": lng,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric",
+            "cnt": 24  # 3 days (8 per day)
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Forecast API error")
+        
+        # Group by day
+        daily_forecast = []
+        for i in range(0, len(data["list"]), 8):
+            day_data = data["list"][i]
+            daily_forecast.append({
+                "date": day_data["dt_txt"].split(" ")[0],
+                "temperature": round(day_data["main"]["temp"]),
+                "description": day_data["weather"][0]["description"]
+            })
+        
+        return {"forecast": daily_forecast[:3]}
+    except Exception as e:
+        logging.error(f"Forecast error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Recipe API Integration
+@api_router.get("/recipes/search")
+async def search_recipes(query: str, diet: str = None):
+    """Search recipes by ingredients or name"""
+    try:
+        url = "https://api.spoonacular.com/recipes/complexSearch"
+        params = {
+            "query": query,
+            "apiKey": SPOONACULAR_API_KEY,
+            "number": 5,
+            "addRecipeInformation": True
+        }
+        
+        if diet:
+            params["diet"] = diet
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        recipes = []
+        for recipe in data.get("results", []):
+            recipes.append({
+                "id": recipe["id"],
+                "title": recipe["title"],
+                "ready_in_minutes": recipe.get("readyInMinutes", "N/A"),
+                "servings": recipe.get("servings", "N/A"),
+                "image": recipe.get("image", "")
+            })
+        
+        return {"recipes": recipes, "count": len(recipes)}
+    except Exception as e:
+        logging.error(f"Recipe search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/recipes/{recipe_id}")
+async def get_recipe_details(recipe_id: int):
+    """Get detailed recipe instructions"""
+    try:
+        url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
+        params = {
+            "apiKey": SPOONACULAR_API_KEY
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        # Extract simple instructions
+        instructions = []
+        if "analyzedInstructions" in data and data["analyzedInstructions"]:
+            for step in data["analyzedInstructions"][0]["steps"]:
+                instructions.append({
+                    "step": step["number"],
+                    "instruction": step["step"]
+                })
+        
+        return {
+            "title": data["title"],
+            "ready_in_minutes": data.get("readyInMinutes", "N/A"),
+            "servings": data.get("servings", "N/A"),
+            "instructions": instructions,
+            "ingredients": [ing["original"] for ing in data.get("extendedIngredients", [])]
+        }
+    except Exception as e:
+        logging.error(f"Recipe details error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# YouTube API Integration
+@api_router.get("/youtube/search")
+async def search_youtube(query: str, max_results: int = 5):
+    """Search YouTube videos"""
+    try:
+        url = "https://www.googleapis.com/youtube/v3/search"
+        params = {
+            "part": "snippet",
+            "q": query,
+            "type": "video",
+            "maxResults": max_results,
+            "key": YOUTUBE_API_KEY
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if "error" in data:
+            raise HTTPException(status_code=400, detail=data["error"]["message"])
+        
+        videos = []
+        for item in data.get("items", []):
+            videos.append({
+                "video_id": item["id"]["videoId"],
+                "title": item["snippet"]["title"],
+                "description": item["snippet"]["description"][:150] + "...",
+                "thumbnail": item["snippet"]["thumbnails"]["medium"]["url"],
+                "channel": item["snippet"]["channelTitle"]
+            })
+        
+        return {"videos": videos, "count": len(videos)}
+    except Exception as e:
+        logging.error(f"YouTube search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
