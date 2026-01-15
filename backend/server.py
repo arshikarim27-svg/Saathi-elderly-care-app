@@ -279,6 +279,121 @@ async def get_conversation(user_id: str):
         return {"messages": []}
     return serialize_doc(conversation)
 
+# Google Maps Integration
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+
+@api_router.get("/maps/nearby")
+async def find_nearby_places(
+    lat: float,
+    lng: float,
+    type: str = "hospital",
+    radius: int = 5000
+):
+    """Find nearby places (hospitals, pharmacies, doctors)"""
+    try:
+        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        params = {
+            "location": f"{lat},{lng}",
+            "radius": radius,
+            "type": type,
+            "key": GOOGLE_MAPS_API_KEY
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if data.get("status") != "OK":
+            raise HTTPException(status_code=400, detail=data.get("status"))
+        
+        # Format results for elderly-friendly display
+        places = []
+        for place in data.get("results", [])[:5]:  # Limit to 5 closest
+            places.append({
+                "name": place["name"],
+                "address": place.get("vicinity", "Address not available"),
+                "rating": place.get("rating", "No rating"),
+                "open_now": place.get("opening_hours", {}).get("open_now", None),
+                "lat": place["geometry"]["location"]["lat"],
+                "lng": place["geometry"]["location"]["lng"]
+            })
+        
+        return {"places": places, "count": len(places)}
+    except Exception as e:
+        logging.error(f"Maps error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/maps/directions")
+async def get_directions(
+    origin_lat: float,
+    origin_lng: float,
+    dest_lat: float,
+    dest_lng: float
+):
+    """Get directions from origin to destination"""
+    try:
+        url = "https://maps.googleapis.com/maps/api/directions/json"
+        params = {
+            "origin": f"{origin_lat},{origin_lng}",
+            "destination": f"{dest_lat},{dest_lng}",
+            "mode": "walking",  # Elderly-friendly walking directions
+            "key": GOOGLE_MAPS_API_KEY
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if data.get("status") != "OK":
+            raise HTTPException(status_code=400, detail=data.get("status"))
+        
+        route = data["routes"][0]
+        leg = route["legs"][0]
+        
+        # Extract simple, clear instructions
+        steps = []
+        for step in leg["steps"]:
+            steps.append({
+                "instruction": step["html_instructions"].replace("<b>", "").replace("</b>", ""),
+                "distance": step["distance"]["text"],
+                "duration": step["duration"]["text"]
+            })
+        
+        return {
+            "total_distance": leg["distance"]["text"],
+            "total_duration": leg["duration"]["text"],
+            "steps": steps
+        }
+    except Exception as e:
+        logging.error(f"Directions error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/maps/geocode")
+async def geocode_address(address: str):
+    """Convert address to coordinates"""
+    try:
+        url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": address,
+            "key": GOOGLE_MAPS_API_KEY
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if data.get("status") != "OK":
+            raise HTTPException(status_code=400, detail="Address not found")
+        
+        location = data["results"][0]["geometry"]["location"]
+        formatted_address = data["results"][0]["formatted_address"]
+        
+        return {
+            "lat": location["lat"],
+            "lng": location["lng"],
+            "formatted_address": formatted_address
+        }
+    except Exception as e:
+        logging.error(f"Geocode error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
