@@ -421,9 +421,18 @@ export default function Index() {
       return;
     }
 
+    if (newReminder.type === 'custom' && !newReminder.customType) {
+      Alert.alert('Oops', 'Please specify the type of reminder');
+      return;
+    }
+
+    const finalType = newReminder.type === 'custom' ? newReminder.customType : newReminder.type;
+
     const reminder: Reminder = {
       id: Date.now().toString(),
-      ...newReminder,
+      type: finalType,
+      title: newReminder.title,
+      time: newReminder.time,
       enabled: true,
     };
 
@@ -433,7 +442,7 @@ export default function Index() {
     await scheduleNotification(reminder);
 
     setShowReminderModal(false);
-    setNewReminder({ type: 'medicine', title: '', time: '' });
+    setNewReminder({ type: 'custom', customType: '', title: '', time: '' });
     Alert.alert('Done!', 'Your reminder has been set');
   };
 
