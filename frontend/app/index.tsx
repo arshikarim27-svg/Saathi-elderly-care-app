@@ -60,7 +60,8 @@ export default function Index() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [newReminder, setNewReminder] = useState({
-    type: 'medicine',
+    type: 'custom',
+    customType: '',
     title: '',
     time: '',
   });
