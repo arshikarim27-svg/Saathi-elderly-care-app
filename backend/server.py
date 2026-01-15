@@ -419,15 +419,15 @@ async def geocode_address(address: str):
         logging.error(f"Geocode error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# News API Integration
+# News API Integration (India-focused)
 @api_router.get("/news/headlines")
-async def get_news_headlines(category: str = "general", country: str = "us"):
-    """Get top news headlines"""
+async def get_news_headlines(category: str = "general", country: str = "in"):
+    """Get top news headlines for India"""
     try:
         url = "https://newsapi.org/v2/top-headlines"
         params = {
             "category": category,
-            "country": country,
+            "country": country,  # Default to India
             "apiKey": NEWS_API_KEY,
             "pageSize": 5
         }
