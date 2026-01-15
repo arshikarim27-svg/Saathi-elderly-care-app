@@ -811,6 +811,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  voiceInstructions: {
+    backgroundColor: '#E8F4FD',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4A90E2',
+  },
+  voiceInstructionsText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  voiceInstructionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C5F8D',
+    marginBottom: 4,
+  },
+  voiceInstructionsSubtext: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 19,
+  },
   remindersSection: {
     marginBottom: 24,
   },
