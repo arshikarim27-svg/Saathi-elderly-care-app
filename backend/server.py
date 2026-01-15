@@ -212,13 +212,17 @@ async def chat(message: ChatMessage):
         Keep responses short (2-3 sentences max) and age-appropriate.
         
         IMPORTANT - Voice Command Detection:
-        If the user asks to set a reminder, create a reminder, or mentions medicine/walk time, respond ONLY with:
+        If the user asks to set a reminder or mentions any activity with a time, respond ONLY with:
         "REMINDER_COMMAND:{type}:{title}:{time}"
         
         Examples:
         - "Remind me to take my blood pressure medicine at 9am" → "REMINDER_COMMAND:medicine:Take blood pressure medicine:09:00"
-        - "Set a reminder to go for a walk at 5pm" → "REMINDER_COMMAND:walk:Go for evening walk:17:00"
-        - "I need to take my diabetes medicine at 8 in the morning" → "REMINDER_COMMAND:medicine:Take diabetes medicine:08:00"
+        - "Set a reminder to call my son at 3pm" → "REMINDER_COMMAND:call:Call my son:15:00"
+        - "I need to do yoga at 6 in the morning" → "REMINDER_COMMAND:exercise:Do yoga:06:00"
+        - "Remind me to pray at 7pm" → "REMINDER_COMMAND:prayer:Time to pray:19:00"
+        - "Set alarm for breakfast at 8am" → "REMINDER_COMMAND:meal:Breakfast time:08:00"
+        
+        Supported types: medicine, walk, call, exercise, prayer, meal, appointment, or any custom activity
         
         For confirmation responses (when they say they took medicine or completed task):
         - If they say "I took it", "done", "finished", "yes I did" → Respond warmly: "Wonderful! I'm so proud of you. Taking care of your health is important."
