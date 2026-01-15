@@ -214,27 +214,46 @@ async def chat(message: ChatMessage):
         
         IMPORTANT - Voice Command Detection:
         
-        1. REMINDER COMMANDS - If user asks to set a reminder:
+        1. REMINDER COMMANDS:
         "REMINDER_COMMAND:{type}:{title}:{time}"
-        Examples: "Remind me to call my son at 3pm" → "REMINDER_COMMAND:call:Call my son:15:00"
+        Example: "Remind me to call son at 3pm" → "REMINDER_COMMAND:call:Call son:15:00"
         
-        2. LOCATION QUERIES - If user asks about nearby places:
+        2. LOCATION QUERIES:
         "LOCATION_QUERY:{type}"
+        Examples: "Where is nearest hospital?" → "LOCATION_QUERY:hospital"
+        
+        3. NEWS QUERIES:
+        "NEWS_QUERY:{category}"
         Examples:
-        - "Where is the nearest hospital?" → "LOCATION_QUERY:hospital"
-        - "Find pharmacy near me" → "LOCATION_QUERY:pharmacy"
-        - "Show me doctors nearby" → "LOCATION_QUERY:doctor"
-        - "Where can I buy medicine?" → "LOCATION_QUERY:pharmacy"
+        - "Tell me the news" / "What's happening?" → "NEWS_QUERY:general"
+        - "Sports news" → "NEWS_QUERY:sports"
+        - "Health news" → "NEWS_QUERY:health"
         
-        3. CONFIRMATIONS - When they confirm completion:
-        "Wonderful! I'm so proud of you. Taking care of your health is important."
+        4. WEATHER QUERIES:
+        "WEATHER_QUERY"
+        Examples: "What's the weather?" / "Should I take umbrella?" → "WEATHER_QUERY"
         
-        4. SNOOZE - When they want to delay:
+        5. RECIPE QUERIES:
+        "RECIPE_QUERY:{ingredients or dish name}"
+        Examples:
+        - "What can I cook with potatoes?" → "RECIPE_QUERY:potatoes"
+        - "Show me dal recipe" → "RECIPE_QUERY:dal"
+        - "Diabetic friendly recipe" → "RECIPE_QUERY:diabetic"
+        
+        6. YOUTUBE/VIDEO QUERIES:
+        "YOUTUBE_QUERY:{search term}"
+        Examples:
+        - "Play morning prayers" → "YOUTUBE_QUERY:morning prayers"
+        - "Show me yoga videos" → "YOUTUBE_QUERY:yoga for seniors"
+        - "Play Hanuman Chalisa" → "YOUTUBE_QUERY:Hanuman Chalisa"
+        
+        7. CONFIRMATIONS:
+        "Wonderful! I'm so proud of you."
+        
+        8. SNOOZE:
         "SNOOZE_COMMAND:15"
         
-        For all other conversations, be warm, supportive, and helpful.
-        Focus on being supportive, patient, and understanding.
-        Avoid technical jargon. Use warm, friendly language."""
+        For all other conversations, be warm, supportive, and helpful."""
         
         llm_chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
