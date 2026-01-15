@@ -59,6 +59,10 @@ export default function Index() {
     time: '',
   });
   const [loading, setLoading] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [recentChats, setRecentChats] = useState<string[]>([]);
+  const [greeting, setGreeting] = useState('');
 
   const suggestions: SuggestionCard[] = [
     { text: 'Tell me a story', icon: 'book' },
