@@ -47,6 +47,12 @@ interface SuggestionCard {
   icon: string;
 }
 
+interface ChatHistory {
+  message: string;
+  response: string;
+  time: string;
+}
+
 export default function Index() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -61,21 +67,102 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('');
   const [showNameModal, setShowNameModal] = useState(false);
-  const [recentChats, setRecentChats] = useState<string[]>([]);
+  const [tempName, setTempName] = useState('');
+  const [recentChats, setRecentChats] = useState<ChatHistory[]>([]);
   const [greeting, setGreeting] = useState('');
 
   const suggestions: SuggestionCard[] = [
-    { text: 'Tell me a story', icon: 'book' },
-    { text: 'Remind me to take medicine', icon: 'medical' },
-    { text: 'How is the weather today?', icon: 'sunny' },
-    { text: 'Share a health tip', icon: 'heart' },
+    { text: 'Tell me a story from your childhood', icon: 'book' },
+    { text: 'What should I cook today?', icon: 'restaurant' },
+    { text: 'Tell me a joke to brighten my day', icon: 'happy' },
+    { text: 'Share a health tip with me', icon: 'heart' },
   ];
 
   useEffect(() => {
-    requestPermissions();
-    loadReminders();
-    setupNotifications();
+    initializeApp();
   }, []);
+
+  useEffect(() => {
+    if (userName) {
+      updateGreeting();
+    }
+  }, [userName]);
+
+  const initializeApp = async () => {
+    await requestPermissions();
+    await loadUserName();
+    await loadReminders();
+    await loadChatHistory();
+    await setupNotifications();
+  };
+
+  const updateGreeting = () => {
+    const hour = new Date().getHours();
+    let timeGreeting = '';
+    
+    if (hour < 12) {
+      timeGreeting = 'Good morning';
+    } else if (hour < 17) {
+      timeGreeting = 'Good afternoon';
+    } else {
+      timeGreeting = 'Good evening';
+    }
+    
+    setGreeting(`${timeGreeting}, ${userName}!`);
+  };
+
+  const loadUserName = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('userName');
+      if (stored) {
+        setUserName(stored);
+      } else {
+        setShowNameModal(true);
+      }
+    } catch (error) {
+      console.error('Error loading user name:', error);
+    }
+  };
+
+  const saveUserName = async () => {
+    if (tempName.trim()) {
+      await AsyncStorage.setItem('userName', tempName.trim());
+      setUserName(tempName.trim());
+      setShowNameModal(false);
+      setTempName('');
+    }
+  };
+
+  const loadChatHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('chatHistory');
+      if (stored) {
+        const history = JSON.parse(stored);
+        setRecentChats(history.slice(0, 3)); // Show last 3 conversations
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  };
+
+  const saveChatHistory = async (message: string, response: string) => {
+    try {
+      const stored = await AsyncStorage.getItem('chatHistory');
+      const history = stored ? JSON.parse(stored) : [];
+      
+      const newChat: ChatHistory = {
+        message,
+        response,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      };
+      
+      const updatedHistory = [newChat, ...history].slice(0, 10); // Keep last 10
+      await AsyncStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
+      setRecentChats(updatedHistory.slice(0, 3));
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
+  };
 
   const requestPermissions = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
@@ -85,7 +172,6 @@ export default function Index() {
   };
 
   const setupNotifications = async () => {
-    // Schedule notifications for reminders
     const storedReminders = await AsyncStorage.getItem('reminders');
     if (storedReminders) {
       const remindersList: Reminder[] = JSON.parse(storedReminders);
@@ -109,7 +195,7 @@ export default function Index() {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: reminder.type === 'medicine' ? '💊 Medicine Reminder' : '🚶 Walk Reminder',
+        title: reminder.type === 'medicine' ? '💊 Medicine Time' : '🚶 Time for a Walk',
         body: reminder.title,
         sound: true,
       },
@@ -137,7 +223,7 @@ export default function Index() {
     Speech.speak(text, {
       language: 'en-US',
       pitch: 1.0,
-      rate: 0.8,
+      rate: 0.75,
       onDone: () => setIsSpeaking(false),
       onStopped: () => setIsSpeaking(false),
       onError: () => setIsSpeaking(false),
@@ -150,10 +236,9 @@ export default function Index() {
       return;
     }
 
-    // For MVP, we'll show a simple input for now
     Alert.prompt(
-      'Talk to Saathi',
-      'What would you like to say?',
+      `Talk to me, ${userName}`,
+      'What would you like to talk about?',
       async (text) => {
         if (text && text.trim()) {
           await sendMessage(text);
@@ -165,7 +250,7 @@ export default function Index() {
 
   const sendMessage = async (message: string) => {
     setLoading(true);
-    setCurrentMessage(message);
+    setCurrentMessage('');
 
     try {
       const response = await fetch(`${API_URL}/api/chat`, {
@@ -174,8 +259,8 @@ export default function Index() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: message,
-          user_id: 'default',
+          message: `My name is ${userName}. ${message}`,
+          user_id: userName.toLowerCase().replace(/\s+/g, '_'),
         }),
       });
 
@@ -186,9 +271,10 @@ export default function Index() {
       const data = await response.json();
       speak(data.response);
       setCurrentMessage(data.response);
+      await saveChatHistory(message, data.response);
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', 'Could not connect to Saathi. Please try again.');
+      Alert.alert('Sorry', 'I had trouble connecting. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -200,12 +286,13 @@ export default function Index() {
 
   const handleSOS = () => {
     Alert.alert(
-      '🚨 Emergency SOS',
-      'Call emergency services?',
+      '🚨 Emergency',
+      'Would you like to call for help?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Call 911',
+          text: 'Call Emergency',
+          style: 'destructive',
           onPress: () => {
             Linking.openURL('tel:911');
           },
@@ -216,7 +303,7 @@ export default function Index() {
 
   const addReminder = async () => {
     if (!newReminder.title || !newReminder.time) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Oops', 'Please fill in all the details');
       return;
     }
 
@@ -233,7 +320,7 @@ export default function Index() {
 
     setShowReminderModal(false);
     setNewReminder({ type: 'medicine', title: '', time: '' });
-    Alert.alert('Success', 'Reminder added successfully!');
+    Alert.alert('Done!', 'Your reminder has been set');
   };
 
   const deleteReminder = async (id: string) => {
@@ -245,22 +332,25 @@ export default function Index() {
   };
 
   const snoozeReminder = async (id: string, minutes: number) => {
-    Alert.alert('Snoozed', `Reminder snoozed for ${minutes} minutes`);
+    Alert.alert('Snoozed', `I'll remind you again in ${minutes} minutes`);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       
-      {/* Header with SOS */}
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Saathi</Text>
+        <View>
+          <Text style={styles.headerTitle}>Saathi</Text>
+          {userName && <Text style={styles.headerSubtitle}>Your companion</Text>}
+        </View>
         <TouchableOpacity
           style={styles.sosButton}
           onPress={handleSOS}
           activeOpacity={0.8}
         >
-          <Ionicons name="warning" size={28} color="#fff" />
+          <Ionicons name="warning" size={24} color="#fff" />
           <Text style={styles.sosText}>SOS</Text>
         </TouchableOpacity>
       </View>
@@ -269,19 +359,25 @@ export default function Index() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Personalized Greeting */}
+        {userName && greeting && (
+          <View style={styles.greetingCard}>
+            <Text style={styles.greetingText}>{greeting}</Text>
+            <Text style={styles.greetingSubtext}>How can I help you today?</Text>
+          </View>
+        )}
+
         {/* Active Reminders */}
         {reminders.length > 0 && (
           <View style={styles.remindersSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today's Reminders</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Your Reminders Today</Text>
             {reminders.slice(0, 2).map((reminder) => (
               <View key={reminder.id} style={styles.reminderCard}>
                 <View style={styles.reminderIcon}>
                   <Ionicons
                     name={reminder.type === 'medicine' ? 'medical' : 'walk'}
-                    size={24}
-                    color="#FF9966"
+                    size={22}
+                    color="#4A90E2"
                   />
                 </View>
                 <View style={styles.reminderInfo}>
@@ -291,15 +387,15 @@ export default function Index() {
                 <View style={styles.reminderActions}>
                   <TouchableOpacity
                     onPress={() => snoozeReminder(reminder.id, 15)}
-                    style={styles.snoozeButton}
+                    style={styles.iconButton}
                   >
-                    <Ionicons name="time" size={20} color="#666" />
+                    <Ionicons name="time-outline" size={20} color="#666" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => deleteReminder(reminder.id)}
-                    style={styles.deleteButton}
+                    style={styles.iconButton}
                   >
-                    <Ionicons name="close-circle" size={20} color="#999" />
+                    <Ionicons name="close-circle-outline" size={20} color="#999" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -307,17 +403,47 @@ export default function Index() {
           </View>
         )}
 
-        {/* Main Talk Button */}
+        {/* Recent Conversations */}
+        {recentChats.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={styles.sectionTitle}>Recent Conversations</Text>
+            {recentChats.map((chat, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.historyCard}
+                onPress={() => {
+                  setCurrentMessage(chat.response);
+                  speak(chat.response);
+                }}
+              >
+                <Text style={styles.historyTime}>{chat.time}</Text>
+                <Text style={styles.historyMessage} numberOfLines={2}>
+                  You: {chat.message}
+                </Text>
+                <Text style={styles.historyResponse} numberOfLines={2}>
+                  Me: {chat.response}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Main Talk Section */}
         <View style={styles.mainSection}>
           {currentMessage ? (
             <View style={styles.messageContainer}>
+              <Ionicons name="chatbubble-ellipses" size={28} color="#4A90E2" />
               <Text style={styles.messageText}>{currentMessage}</Text>
             </View>
           ) : (
-            <Text style={styles.welcomeText}>
-              Hi! I'm Saathi, your friendly companion. {'\n'}
-              Tap the button below to talk to me.
-            </Text>
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.welcomeText}>
+                {userName ? `I'm here to listen, ${userName}.` : "I'm here to listen."}
+              </Text>
+              <Text style={styles.welcomeSubtext}>
+                Tap the button below to start talking
+              </Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -335,11 +461,11 @@ export default function Index() {
               <>
                 <Ionicons
                   name={isListening ? 'mic' : isSpeaking ? 'volume-high' : 'chatbubbles'}
-                  size={60}
+                  size={56}
                   color="#fff"
                 />
                 <Text style={styles.talkButtonText}>
-                  {isListening ? 'Listening...' : isSpeaking ? 'Speaking...' : 'Talk to Saathi'}
+                  {isListening ? 'Listening...' : isSpeaking ? 'Speaking...' : 'Talk to me'}
                 </Text>
               </>
             )}
@@ -348,7 +474,7 @@ export default function Index() {
 
         {/* Suggestion Cards */}
         <View style={styles.suggestionsSection}>
-          <Text style={styles.suggestionsTitle}>You can ask me about:</Text>
+          <Text style={styles.suggestionsTitle}>Some things we can talk about:</Text>
           <View style={styles.suggestionsGrid}>
             {suggestions.map((suggestion, index) => (
               <TouchableOpacity
@@ -357,7 +483,7 @@ export default function Index() {
                 onPress={() => handleSuggestion(suggestion.text)}
                 activeOpacity={0.7}
               >
-                <Ionicons name={suggestion.icon as any} size={24} color="#FF9966" />
+                <Ionicons name={suggestion.icon as any} size={22} color="#4A90E2" />
                 <Text style={styles.suggestionText}>{suggestion.text}</Text>
               </TouchableOpacity>
             ))}
@@ -369,10 +495,42 @@ export default function Index() {
           style={styles.addReminderButton}
           onPress={() => setShowReminderModal(true)}
         >
-          <Ionicons name="add-circle" size={24} color="#FF9966" />
-          <Text style={styles.addReminderText}>Add Reminder</Text>
+          <Ionicons name="add-circle-outline" size={24} color="#4A90E2" />
+          <Text style={styles.addReminderText}>Set a New Reminder</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Name Setup Modal */}
+      <Modal
+        visible={showNameModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.nameModalContent}>
+            <Ionicons name="person-circle" size={64} color="#4A90E2" />
+            <Text style={styles.nameModalTitle}>Welcome to Saathi!</Text>
+            <Text style={styles.nameModalSubtext}>
+              What should I call you?
+            </Text>
+            <TextInput
+              style={styles.nameInput}
+              placeholder="Your name"
+              placeholderTextColor="#999"
+              value={tempName}
+              onChangeText={setTempName}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={styles.nameModalButton}
+              onPress={saveUserName}
+            >
+              <Text style={styles.nameModalButtonText}>Let's Begin</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add Reminder Modal */}
       <Modal
@@ -383,10 +541,15 @@ export default function Index() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
+          style={styles.modalOverlay}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Reminder</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Set a Reminder</Text>
+              <TouchableOpacity onPress={() => setShowReminderModal(false)}>
+                <Ionicons name="close" size={28} color="#666" />
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Type</Text>
@@ -398,7 +561,7 @@ export default function Index() {
                   ]}
                   onPress={() => setNewReminder({ ...newReminder, type: 'medicine' })}
                 >
-                  <Ionicons name="medical" size={20} color={newReminder.type === 'medicine' ? '#fff' : '#FF9966'} />
+                  <Ionicons name="medical" size={20} color={newReminder.type === 'medicine' ? '#fff' : '#4A90E2'} />
                   <Text style={[styles.typeButtonText, newReminder.type === 'medicine' && styles.typeButtonTextActive]}>
                     Medicine
                   </Text>
@@ -410,7 +573,7 @@ export default function Index() {
                   ]}
                   onPress={() => setNewReminder({ ...newReminder, type: 'walk' })}
                 >
-                  <Ionicons name="walk" size={20} color={newReminder.type === 'walk' ? '#fff' : '#FF9966'} />
+                  <Ionicons name="walk" size={20} color={newReminder.type === 'walk' ? '#fff' : '#4A90E2'} />
                   <Text style={[styles.typeButtonText, newReminder.type === 'walk' && styles.typeButtonTextActive]}>
                     Walk
                   </Text>
@@ -419,7 +582,7 @@ export default function Index() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Title</Text>
+              <Text style={styles.inputLabel}>What should I remind you about?</Text>
               <TextInput
                 style={styles.input}
                 placeholder="e.g., Take blood pressure medicine"
@@ -430,7 +593,7 @@ export default function Index() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Time (HH:MM)</Text>
+              <Text style={styles.inputLabel}>What time? (HH:MM)</Text>
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 09:00"
@@ -440,20 +603,12 @@ export default function Index() {
               />
             </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowReminderModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={addReminder}
-              >
-                <Text style={styles.saveButtonText}>Add Reminder</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={addReminder}
+            >
+              <Text style={styles.saveButtonText}>Set Reminder</Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -464,7 +619,7 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5E6',
+    backgroundColor: '#F5F8FC',
   },
   header: {
     flexDirection: 'row',
@@ -472,24 +627,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
+    backgroundColor: '#2C5F8D',
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#FF9966',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#B8D4E8',
+    marginTop: 2,
   },
   sosButton: {
-    backgroundColor: '#FF4444',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: '#E74C3C',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    shadowColor: '#FF4444',
+    gap: 6,
+    shadowColor: '#E74C3C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -497,22 +655,44 @@ const styles = StyleSheet.create({
   },
   sosText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 40,
+  },
+  greetingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4A90E2',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  greetingText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2C5F8D',
+    marginBottom: 6,
+  },
+  greetingSubtext: {
+    fontSize: 16,
+    color: '#666',
   },
   remindersSection: {
     marginBottom: 24,
   },
-  sectionHeader: {
-    marginBottom: 12,
-  },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#2C5F8D',
+    marginBottom: 12,
   },
   reminderCard: {
     backgroundColor: '#fff',
@@ -523,15 +703,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   reminderIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF5E6',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E8F4FD',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -547,77 +727,112 @@ const styles = StyleSheet.create({
   },
   reminderTime: {
     fontSize: 14,
-    color: '#666',
+    color: '#4A90E2',
+    fontWeight: '500',
   },
   reminderActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
-  snoozeButton: {
+  iconButton: {
     padding: 8,
   },
-  deleteButton: {
-    padding: 8,
+  historySection: {
+    marginBottom: 24,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A90E2',
+  },
+  historyTime: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 6,
+  },
+  historyMessage: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  historyResponse: {
+    fontSize: 14,
+    color: '#2C5F8D',
+    fontWeight: '500',
   },
   mainSection: {
     alignItems: 'center',
-    marginVertical: 32,
+    marginVertical: 28,
+  },
+  welcomeContainer: {
+    alignItems: 'center',
+    marginBottom: 28,
   },
   welcomeText: {
-    fontSize: 20,
+    fontSize: 22,
+    color: '#2C5F8D',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  welcomeSubtext: {
+    fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 28,
-    paddingHorizontal: 20,
   },
   messageContainer: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    marginBottom: 28,
+    alignItems: 'center',
+    maxWidth: width - 60,
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     elevation: 4,
   },
   messageText: {
     fontSize: 18,
     color: '#333',
-    lineHeight: 26,
+    lineHeight: 28,
     textAlign: 'center',
+    marginTop: 12,
   },
   talkButton: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: '#FF9966',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF9966',
+    shadowColor: '#4A90E2',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowRadius: 20,
     elevation: 12,
   },
   talkButtonActive: {
-    backgroundColor: '#FF7744',
+    backgroundColor: '#2C5F8D',
   },
   talkButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    marginTop: 8,
+    marginTop: 10,
   },
   suggestionsSection: {
-    marginTop: 32,
+    marginTop: 28,
   },
   suggestionsTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    color: '#2C5F8D',
+    marginBottom: 14,
   },
   suggestionsGrid: {
     flexDirection: 'row',
@@ -632,55 +847,108 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E8F4FD',
   },
   suggestionText: {
     fontSize: 14,
     color: '#333',
     textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 18,
+    marginTop: 10,
+    lineHeight: 19,
   },
   addReminderButton: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 20,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 32,
+    marginTop: 20,
     borderWidth: 2,
-    borderColor: '#FF9966',
+    borderColor: '#4A90E2',
     borderStyle: 'dashed',
   },
   addReminderText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#FF9966',
-    marginLeft: 12,
+    color: '#4A90E2',
+    marginLeft: 10,
   },
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(44, 95, 141, 0.7)',
+  },
+  nameModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 28,
+    padding: 32,
+    width: width - 60,
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  nameModalTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#2C5F8D',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  nameModalSubtext: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  nameInput: {
+    backgroundColor: '#F5F8FC',
+    borderRadius: 14,
+    padding: 18,
+    fontSize: 18,
+    color: '#333',
+    width: '100%',
+    borderWidth: 2,
+    borderColor: '#E8F4FD',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  nameModalButton: {
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 14,
+    width: '100%',
+  },
+  nameModalButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 24,
-    width: width - 48,
-    maxWidth: 400,
+    width: width,
+    maxHeight: height * 0.8,
+    marginTop: 'auto',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 24,
-    textAlign: 'center',
+    color: '#2C5F8D',
   },
   inputGroup: {
     marginBottom: 20,
@@ -688,17 +956,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: '#2C5F8D',
+    marginBottom: 10,
   },
   input: {
-    backgroundColor: '#FFF5E6',
+    backgroundColor: '#F5F8FC',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     color: '#333',
     borderWidth: 1,
-    borderColor: '#FFE4CC',
+    borderColor: '#E8F4FD',
   },
   typeSelector: {
     flexDirection: 'row',
@@ -712,45 +980,30 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#FF9966',
+    borderColor: '#4A90E2',
     backgroundColor: '#fff',
     gap: 8,
   },
   typeButtonActive: {
-    backgroundColor: '#FF9966',
+    backgroundColor: '#4A90E2',
   },
   typeButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF9966',
+    color: '#4A90E2',
   },
   typeButtonTextActive: {
     color: '#fff',
   },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
   saveButton: {
-    backgroundColor: '#FF9966',
+    backgroundColor: '#4A90E2',
+    padding: 18,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 12,
   },
   saveButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
   },
